@@ -3,129 +3,101 @@ print("Python starting...", flush=True)
 
 import os
 import requests
-import tweepy
 import schedule
 import time
-from datetime import date
+from datetime import date, timedelta
+from dotenv import load_dotenv
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from atproto import Client as BskyClient
+import torch
 
+load_dotenv()
 print("All imports done", flush=True)
 
-# # ── Check secrets BEFORE assigning (so we see what's missing) ──
-# print("--- Checking secrets ---", flush=True)
-# print("FOOTBALL_API_KEY present:",   "FOOTBALL_API_KEY"    in os.environ, flush=True)
-# print("TWITTER_API_KEY present:",    "TWITTER_API_KEY"     in os.environ, flush=True)
-# print("TWITTER_API_SECRET present:", "TWITTER_API_SECRET"  in os.environ, flush=True)
-# print("TWITTER_ACCESS_TOKEN present:", "TWITTER_ACCESS_TOKEN" in os.environ, flush=True)
-# print("TWITTER_ACCESS_SECRET present:", "TWITTER_ACCESS_SECRET" in os.environ, flush=True)
-# print("HF_TOKEN present:",           "HF_TOKEN"            in os.environ, flush=True)
+# ── Check secrets ────────────────────────────────────────────────
+print("--- Checking secrets ---", flush=True)
+print("FOOTBALL_API_KEY present:", "FOOTBALL_API_KEY" in os.environ, flush=True)
+print("HF_TOKEN present:",         "HF_TOKEN"         in os.environ, flush=True)
+print("BSKY_HANDLE present:",      "BSKY_HANDLE"      in os.environ, flush=True)
+print("BSKY_APP_PASS present:",    "BSKY_APP_PASS"    in os.environ, flush=True)
 
-# # ── Load secrets safely (won't crash if missing) ────────────────
-# FOOTBALL_KEY    = os.environ.get("FOOTBALL_API_KEY",     "NOT SET")
-# TW_API_KEY      = os.environ.get("TWITTER_API_KEY",      "NOT SET")
-# TW_API_SECRET   = os.environ.get("TWITTER_API_SECRET",   "NOT SET")
-# TW_ACCESS_TOKEN = os.environ.get("TWITTER_ACCESS_TOKEN", "NOT SET")
-# TW_ACCESS_SEC   = os.environ.get("TWITTER_ACCESS_SECRET","NOT SET")
-# HF_TOKEN        = os.environ.get("HF_TOKEN",             "NOT SET")
+# ── Load secrets ─────────────────────────────────────────────────
+FOOTBALL_KEY  = os.environ.get("FOOTBALL_API_KEY", "NOT SET")
+HF_TOKEN      = os.environ.get("HF_TOKEN",         "NOT SET")
+BSKY_HANDLE   = os.environ.get("BSKY_HANDLE",      "NOT SET")
+BSKY_APP_PASS = os.environ.get("BSKY_APP_PASS",    "NOT SET")
 
-# # Print first 6 chars to confirm loaded without exposing full key
-# print("FOOTBALL_KEY:",    FOOTBALL_KEY[:6]    if FOOTBALL_KEY    != "NOT SET" else "NOT SET", flush=True)
-# print("TW_API_KEY:",      TW_API_KEY[:6]      if TW_API_KEY      != "NOT SET" else "NOT SET", flush=True)
-# print("TW_API_SECRET:",   TW_API_SECRET[:6]   if TW_API_SECRET   != "NOT SET" else "NOT SET", flush=True)
-# print("TW_ACCESS_TOKEN:", TW_ACCESS_TOKEN[:6] if TW_ACCESS_TOKEN != "NOT SET" else "NOT SET", flush=True)
-# print("TW_ACCESS_SEC:",   TW_ACCESS_SEC[:6]   if TW_ACCESS_SEC   != "NOT SET" else "NOT SET", flush=True)
-# print("HF_TOKEN:",        HF_TOKEN[:6]        if HF_TOKEN        != "NOT SET" else "NOT SET", flush=True)
+print("FOOTBALL_KEY:", FOOTBALL_KEY[:6] if FOOTBALL_KEY != "NOT SET" else "NOT SET", flush=True)
+print("HF_TOKEN:",     HF_TOKEN[:6]     if HF_TOKEN     != "NOT SET" else "NOT SET", flush=True)
+print("BSKY_HANDLE:",  BSKY_HANDLE,                                                  flush=True)
 
-# # ── Abort early if any secret is missing ────────────────────────
-# missing = [k for k, v in {
-#     "FOOTBALL_API_KEY":     FOOTBALL_KEY,
-#     "TWITTER_API_KEY":      TW_API_KEY,
-#     "TWITTER_API_SECRET":   TW_API_SECRET,
-#     "TWITTER_ACCESS_TOKEN": TW_ACCESS_TOKEN,
-#     "TWITTER_ACCESS_SECRET":TW_ACCESS_SEC,
-#     "HF_TOKEN":             HF_TOKEN,
-# }.items() if v == "NOT SET"]
+# ── Abort if any secret missing ──────────────────────────────────
+missing = [k for k, v in {
+    "FOOTBALL_API_KEY": FOOTBALL_KEY,
+    "HF_TOKEN":         HF_TOKEN,
+    "BSKY_HANDLE":      BSKY_HANDLE,
+    "BSKY_APP_PASS":    BSKY_APP_PASS,
+}.items() if v == "NOT SET"]
 
-# if missing:
-#     print(f"MISSING SECRETS: {missing}", flush=True)
-#     print("Go to Space Settings → Secrets and add the missing keys.", flush=True)
-#     sys.exit(1)
-
-BSKY_HANDLE   = os.environ.get("BSKY_HANDLE",   "NOT SET")
-BSKY_APP_PASS = os.environ.get("BSKY_APP_PASS",  "NOT SET")
-print("BSKY_HANDLE present:",   BSKY_HANDLE   != "NOT SET", flush=True)
-print("BSKY_APP_PASS present:", BSKY_APP_PASS != "NOT SET", flush=True)
+if missing:
+    print(f"MISSING SECRETS: {missing}", flush=True)
+    print("Add them to your .env file.", flush=True)
+    sys.exit(1)
 
 print("All secrets loaded", flush=True)
 
-# ── Twitter client ───────────────────────────────────────────────
-try:
-    twitter = tweepy.Client(
-        consumer_key=TW_API_KEY,
-        consumer_secret=TW_API_SECRET,
-        access_token=TW_ACCESS_TOKEN,
-        access_token_secret=TW_ACCESS_SEC
-    )
-    print("Twitter client ready", flush=True)
-except Exception as e:
-    print(f"Twitter client failed: {e}", flush=True)
-    sys.exit(1)
+# ── Load Genzify model ───────────────────────────────────────────
+print("Loading Genzify model...", flush=True)
+tokenizer = AutoTokenizer.from_pretrained("somendrew/genz-qwen-2.5-1.5B", token=HF_TOKEN)
+model = AutoModelForCausalLM.from_pretrained(
+    "somendrew/genz-qwen-2.5-1.5B",
+    token=HF_TOKEN,
+    dtype=torch.bfloat16,
+    device_map="cpu",
+    low_cpu_mem_usage=True,
+)
+model.eval()
+model.config.use_cache = True
+print("Model loaded!", flush=True)
 
-# ── League IDs on football-data.org ─────────────────────────────
+# ── Competitions to track ────────────────────────────────────────
 LEAGUES = {
-    "PL": "Premier League",
-    "CL": "Champions League",
+    "PL":  "Premier League",
+    "CL":  "UEFA Champions League",
 }
 
-# ── Fetch today's finished matches ──────────────────────────────
-from datetime import date, timedelta
-
+# ── Fetch today's finished matches ───────────────────────────────
 def get_finished_matches():
-    headers = {"X-Auth-Token": FOOTBALL_KEY}
-    today    = "2026-03-15"
-    tomorrow = "2026-03-16"
-
-    LEAGUES = {
-        "PL": "Premier League",
-        "CL": "UEFA Champions League",
-    }
+    headers  = {"X-Auth-Token": FOOTBALL_KEY}
+    today    = str(date.today())
+    tomorrow = str(date.today() + timedelta(days=1))
 
     try:
-        url = f"https://api.football-data.org/v4/matches?dateFrom={today}&dateTo={tomorrow}&status=FINISHED&competitions=PL,CL"
+        url = (
+            f"https://api.football-data.org/v4/matches"
+            f"?dateFrom={today}&dateTo={tomorrow}"
+            f"&status=FINISHED&competitions=PL,CL"
+        )
         r = requests.get(url, headers=headers, timeout=10)
-
         print(f"API status code: {r.status_code}", flush=True)
-        print(f"API response: {r.text[:300]}", flush=True)
-
         r.raise_for_status()
-        matches = r.json().get("matches", [])
-        print(f"Total PL/CL finished matches: {len(matches)}", flush=True)
 
+        matches = r.json().get("matches", [])
         results = []
         for m in matches:
             comp_code = m.get("competition", {}).get("code", "")
-            comp_name = LEAGUES.get(comp_code, None)
+            comp_name = LEAGUES.get(comp_code)
             if comp_name:
                 results.append((comp_name, m))
 
-        print(f"Filtered matches: {len(results)}", flush=True)
+        print(f"Finished PL/CL matches today: {len(results)}", flush=True)
         return results
 
     except Exception as e:
         print(f"Error fetching matches: {e}", flush=True)
         return []
 
-# ── Genzify via HF Inference API ────────────────────────────────
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
-
-# Load once at startup (outside the function)
-print("Loading Genzify model...", flush=True)
-tokenizer = AutoTokenizer.from_pretrained("somendrew/genz-qwen-2.5-1.5B", token=HF_TOKEN)
-model = AutoModelForCausalLM.from_pretrained("somendrew/genz-qwen-2.5-1.5B", token=HF_TOKEN, torch_dtype=torch.float32)
-model.eval()
-print("Model loaded!", flush=True)
-
+# ── Genzify the result ───────────────────────────────────────────
 def genzify(league, match):
     home = match["homeTeam"]["name"]
     away = match["awayTeam"]["name"]
@@ -140,10 +112,14 @@ def genzify(league, match):
         context = f"{home} and {away} drew {hg}-{ag}"
 
     prompt = (
-        "<|im_start|>system\nYou are a GenZ football fan on Twitter. "
+        "<|im_start|>system\n"
+        "You are a GenZ football fan on Twitter. "
         "Write a single hype tweet in GenZ slang with emojis. "
-        "Max 220 characters. No hashtags needed.\n<|im_end|>\n"
-        f"<|im_start|>user\nWrite a tweet about this {league} result: {context}\n<|im_end|>\n"
+        "Max 220 characters. No hashtags needed.\n"
+        "<|im_end|>\n"
+        "<|im_start|>user\n"
+        f"Write a tweet about this {league} result: {context}\n"
+        "<|im_end|>\n"
         "<|im_start|>assistant\n"
     )
 
@@ -157,77 +133,73 @@ def genzify(league, match):
                 do_sample=True,
                 pad_token_id=tokenizer.eos_token_id,
             )
-        tweet = tokenizer.decode(outputs[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
-        tweet = tweet.strip()[:220]
+        tweet = tokenizer.decode(
+            outputs[0][inputs["input_ids"].shape[1]:],
+            skip_special_tokens=True
+        ).strip()[:300]
         print(f"Genzify output: {tweet}", flush=True)
         return tweet, context
+
     except Exception as e:
         print(f"Genzify error: {e}", flush=True)
         return None, context
 
-# ── Track posted matches to avoid duplicates ────────────────────
-posted = set()
+# ── Post to Bluesky ──────────────────────────────────────────────
+def post_to_bluesky(text):
+    try:
+        client = BskyClient()
+        client.login(BSKY_HANDLE, BSKY_APP_PASS)
+        response = client.send_post(text=text)
+        print(f"Posted to Bluesky: {text[:60]}...", flush=True)
+        return response.uri
+    except Exception as e:
+        print(f"Bluesky error: {e}", flush=True)
+        return None
 
-MAX_POSTS_PER_RUN = 5
+# ── Track posted matches ─────────────────────────────────────────
+posted = set()
+MAX_POSTS_PER_RUN = 3
 
 # ── Main run loop ────────────────────────────────────────────────
-# def post_scores():
-#     print("\n--- Checking for finished matches ---", flush=True)
-#     matches = get_finished_matches()
+def run_bot():
+    print("\n--- Checking for finished matches ---", flush=True)
+    matches = get_finished_matches()
 
-#     if not matches:
-#         print("No matches today.", flush=True)
-#         return
+    if not matches:
+        print("No PL/CL matches today.", flush=True)
+        return
 
-#     posted_this_run = 0
+    posted_this_run = 0
 
-#     for league, match in matches:
-#         if posted_this_run >= MAX_POSTS_PER_RUN:
-#             print("Max posts per run reached, stopping.", flush=True)
-#             break
+    for league, match in matches:
+        if posted_this_run >= MAX_POSTS_PER_RUN:
+            print("Max posts per run reached, stopping.", flush=True)
+            break
 
-#         match_id = match["id"]
+        match_id = match["id"]
+        if match_id in posted:
+            print(f"Already posted match {match_id}, skipping.", flush=True)
+            continue
 
-#         if match_id in posted:
-#             print(f"Already posted match {match_id}, skipping.", flush=True)
-#             continue
+        tweet, context = genzify(league, match)
+        if not tweet:
+            print(f"No tweet generated for: {context}", flush=True)
+            continue
 
-#         tweet, context = genzify(league, match)  # FIX: unpack tuple correctly
+        print(f"Attempting to post: {tweet}", flush=True)
+        uri = post_to_bluesky(tweet)
 
-#         if not tweet:
-#             print(f"No tweet generated for: {context}", flush=True)
-#             continue
+        if uri:
+            posted.add(match_id)
+            posted_this_run += 1
 
-#         print(f"Attempting to post: {tweet}", flush=True)
+        time.sleep(5)
 
-#         try:
-#             twitter.create_tweet(text=tweet)
-#             posted.add(match_id)
-#             posted_this_run += 1
-#             print(f"Tweeted: {tweet}", flush=True)
-#         except tweepy.errors.TooManyRequests:
-#             print("Twitter rate limit hit, stopping this run.", flush=True)
-#             break
-#         except tweepy.errors.Forbidden as e:
-#             print(f"Twitter forbidden error (check app permissions): {e}", flush=True)
-#             break
-#         except Exception as e:
-#             print(f"Twitter error: {e}", flush=True)
+# ── Scheduler ────────────────────────────────────────────────────
+schedule.every(30).minutes.do(run_bot)
 
-#         time.sleep(30)  # gap between posts
-
-def post_tweet(text):
-    client = BskyClient()
-    client.login(BSKY_HANDLE, BSKY_APP_PASS)
-    response = client.send_post(text=text)
-    print(f"Posted to Bluesky! URI: {response.uri}", flush=True)
-    return response.uri
-
-# ── Schedule every 9 minutes ────────────────────────────────────
-schedule.every(9).minutes.do(post_tweet)
-
-print("Bot is running. Running now and then every 9 minutes.", flush=True)
-post_scores()  # run once immediately on startup
+print("Bot is running. Checking every 30 minutes.", flush=True)
+run_bot()  # run once immediately on startup
 
 while True:
     schedule.run_pending()
