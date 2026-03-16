@@ -107,6 +107,8 @@ def get_finished_matches():
         return []
 
 # ── Genzify via HF Inference API ────────────────────────────────
+from huggingface_hub import InferenceClient
+
 def genzify(league, match):
     home = match["homeTeam"]["name"]
     away = match["awayTeam"]["name"]
@@ -133,30 +135,18 @@ def genzify(league, match):
     )
 
     try:
-        response = requests.post(
-            "https://api-inference.huggingface.co/models/somendrew/genz-qwen-2.5-1.5B",
-            headers={"Authorization": f"Bearer {HF_TOKEN}"},
-            json={
-                "inputs": prompt,
-                "parameters": {
-                    "max_new_tokens": 80,
-                    "temperature": 0.9,
-                    "do_sample": True,
-                    "return_full_text": False,
-                },
-            },
-            timeout=30,
+        client = InferenceClient(
+            provider="hf-inference",
+            api_key=HF_TOKEN,
         )
-        response.raise_for_status()
-        data = response.json()
-
-        # Handle model loading / error responses from HF
-        if isinstance(data, dict) and "error" in data:
-            print(f"HF model error: {data['error']}", flush=True)
-            return None, context
-
-        tweet = data[0]["generated_text"].strip()
-        tweet = tweet[:220]
+        response = client.text_generation(
+            prompt,
+            model="somendrew/genz-qwen-2.5-1.5B",
+            max_new_tokens=80,
+            temperature=0.9,
+            do_sample=True,
+        )
+        tweet = response.strip()[:220]
         return tweet, context
 
     except Exception as e:
