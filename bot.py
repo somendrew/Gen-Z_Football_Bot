@@ -107,7 +107,15 @@ def get_finished_matches():
         return []
 
 # ── Genzify via HF Inference API ────────────────────────────────
-from huggingface_hub import InferenceClient
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+
+# Load once at startup (outside the function)
+print("Loading Genzify model...", flush=True)
+tokenizer = AutoTokenizer.from_pretrained("somendrew/genz-qwen-2.5-1.5B", token=HF_TOKEN)
+model = AutoModelForCausalLM.from_pretrained("somendrew/genz-qwen-2.5-1.5B", token=HF_TOKEN, torch_dtype=torch.float32)
+model.eval()
+print("Model loaded!", flush=True)
 
 def genzify(league, match):
     home = match["homeTeam"]["name"]
@@ -123,32 +131,27 @@ def genzify(league, match):
         context = f"{home} and {away} drew {hg}-{ag}"
 
     prompt = (
-        "<|im_start|>system\n"
-        "You are a GenZ football fan on Twitter. "
+        "<|im_start|>system\nYou are a GenZ football fan on Twitter. "
         "Write a single hype tweet in GenZ slang with emojis. "
-        "Max 220 characters. No hashtags needed.\n"
-        "<|im_end|>\n"
-        "<|im_start|>user\n"
-        f"Write a tweet about this {league} result: {context}\n"
-        "<|im_end|>\n"
+        "Max 220 characters. No hashtags needed.\n<|im_end|>\n"
+        f"<|im_start|>user\nWrite a tweet about this {league} result: {context}\n<|im_end|>\n"
         "<|im_start|>assistant\n"
     )
 
     try:
-        client = InferenceClient(
-            provider="hf-inference",
-            api_key=HF_TOKEN,
-        )
-        response = client.text_generation(
-            prompt,
-            model="somendrew/genz-qwen-2.5-1.5B",
-            max_new_tokens=80,
-            temperature=0.9,
-            do_sample=True,
-        )
-        tweet = response.strip()[:220]
+        inputs = tokenizer(prompt, return_tensors="pt")
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=80,
+                temperature=0.9,
+                do_sample=True,
+                pad_token_id=tokenizer.eos_token_id,
+            )
+        tweet = tokenizer.decode(outputs[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
+        tweet = tweet.strip()[:220]
+        print(f"Genzify output: {tweet}", flush=True)
         return tweet, context
-
     except Exception as e:
         print(f"Genzify error: {e}", flush=True)
         return None, context
