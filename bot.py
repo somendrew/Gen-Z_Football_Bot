@@ -3,8 +3,8 @@ import requests
 import tweepy
 import schedule
 import time
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+# import torch
+# from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # ── Load secrets ──────────────────────────────────────────
 FOOTBALL_KEY    = os.environ["FOOTBALL_API_KEY"]
@@ -12,20 +12,10 @@ TW_API_KEY      = os.environ["TWITTER_API_KEY"]
 TW_API_SECRET   = os.environ["TWITTER_API_SECRET"]
 TW_ACCESS_TOKEN = os.environ["TWITTER_ACCESS_TOKEN"]
 TW_ACCESS_SEC   = os.environ["TWITTER_ACCESS_SECRET"]
+HF_TOKEN        = os.environ["HF_TOKEN"]
 
 # ── Load your GenZ model (4-bit to save RAM) ──────────────
-print("Loading model...")
-from transformers import BitsAndBytesConfig
 
-bnb_config = BitsAndBytesConfig(load_in_4bit=True)
-
-tokenizer = AutoTokenizer.from_pretrained("somendrew/genz-qwen-2.5-1.5B")
-model = AutoModelForCausalLM.from_pretrained(
-    "somendrew/genz-qwen-2.5-1.5B",
-    quantization_config = bnb_config,
-    device_map = "auto"
-)
-print("Model loaded ✅")
 
 # ── Twitter client ─────────────────────────────────────────
 
@@ -82,16 +72,21 @@ Write a tweet about this {league} result: {context}
 <|im_end|>
 <|im_start|>assistant
 """
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    out = model.generate(
-        **inputs,
-        max_new_tokens=80,
-        temperature=0.9,
-        do_sample=True,
-        pad_token_id=tokenizer.eos_token_id
+    response = requests.post(
+        "https://api-inference.huggingface.co/models/somendrew/genz-qwen-2.5-1.5B",
+        headers={"Authorization": f"Bearer {HF_TOKEN}"},
+        json={
+            "inputs": prompt,
+            "parameters": {
+                "max_new_tokens": 80,
+                "temperature": 0.9,
+                "do_sample": True,
+                "return_full_text": False
+            }
+        }
     )
-    tweet = tokenizer.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
-    return tweet[:220]  # hard cap for safety
+    tweet = response.json()[0]["generated_text"]
+    return tweet[:220], context
 
 # ── Track posted matches to avoid duplicates ──────────────
 posted = set()
