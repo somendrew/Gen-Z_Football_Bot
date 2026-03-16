@@ -76,8 +76,10 @@ from datetime import date, timedelta
 
 def get_finished_matches():
     headers = {"X-Auth-Token": FOOTBALL_KEY}
-    today    = str(date.today())
-    tomorrow = str(date.today() + timedelta(days=1))
+    # today    = str(date.today())
+    # tomorrow = str(date.today() + timedelta(days=1))
+    today    = "2026-03-15"
+    tomorrow = "2026-03-16"
 
     try:
         # Use the top-level matches endpoint — supports date + status together
