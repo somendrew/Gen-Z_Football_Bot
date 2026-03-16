@@ -76,26 +76,33 @@ from datetime import date, timedelta
 
 def get_finished_matches():
     headers = {"X-Auth-Token": FOOTBALL_KEY}
-    today    = str(date.today())               # e.g. 2026-03-16
-    tomorrow = str(date.today() + timedelta(days=1))  # dateTo is exclusive so use tomorrow
-    results  = []
+    today    = str(date.today())
+    tomorrow = str(date.today() + timedelta(days=1))
 
-    for code, name in LEAGUES.items():
-        try:
-            url = (
-                f"https://api.football-data.org/v4/competitions/{code}/matches"
-                f"?status=FINISHED&dateFrom={today}&dateTo={tomorrow}"
-            )
-            r = requests.get(url, headers=headers, timeout=10)
-            r.raise_for_status()
-            matches = r.json().get("matches", [])
-            print(f"{name}: {len(matches)} finished matches today", flush=True)
-            results.extend([(name, m) for m in matches])
-            time.sleep(6)
-        except Exception as e:
-            print(f"Error fetching {name}: {e}", flush=True)
+    try:
+        # Use the top-level matches endpoint — supports date + status together
+        url = f"https://api.football-data.org/v4/matches?dateFrom={today}&dateTo={tomorrow}&status=FINISHED"
+        r = requests.get(url, headers=headers, timeout=10)
 
-    return results
+        # Print the raw response so we can see exactly what the API says
+        print(f"API status code: {r.status_code}", flush=True)
+        print(f"API response: {r.text[:300]}", flush=True)
+
+        r.raise_for_status()
+        matches = r.json().get("matches", [])
+        print(f"Total finished matches today: {len(matches)}", flush=True)
+
+        # Return as (competition_name, match) tuples to keep rest of code unchanged
+        results = []
+        for m in matches:
+            comp_name = m.get("competition", {}).get("name", "Unknown League")
+            results.append((comp_name, m))
+
+        return results
+
+    except Exception as e:
+        print(f"Error fetching matches: {e}", flush=True)
+        return []
 
 # ── Genzify via HF Inference API ────────────────────────────────
 def genzify(league, match):
