@@ -1,7 +1,3 @@
-transformers
-torch
-accelerate
 tweepy
 requests
 schedule
-bitsandbytes
