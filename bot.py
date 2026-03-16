@@ -1,3 +1,6 @@
+import sys
+print("Python starting...", flush=True)
+
 import os
 import requests
 import tweepy
@@ -5,10 +8,9 @@ import schedule
 import time
 # import torch
 # from transformers import AutoModelForCausalLM, AutoTokenizer
+from datetime import date
 
-import sys
-print("Python starting...", flush=True)
-print(f"Python version: {sys.version}", flush=True)
+print("All imports done ✅", flush=True)
 
 # ── Load secrets ──────────────────────────────────────────
 FOOTBALL_KEY    = os.environ["FOOTBALL_API_KEY"]
