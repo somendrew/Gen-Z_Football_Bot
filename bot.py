@@ -14,19 +14,32 @@ print("All imports done ✅", flush=True)
 
 # ── Load secrets ──────────────────────────────────────────
 FOOTBALL_KEY    = os.environ["FOOTBALL_API_KEY"]
+
 TW_API_KEY      = os.environ["TWITTER_API_KEY"]
+
 TW_API_SECRET   = os.environ["TWITTER_API_SECRET"]
+
 TW_ACCESS_TOKEN = os.environ["TWITTER_ACCESS_TOKEN"]
+
 TW_ACCESS_SEC   = os.environ["TWITTER_ACCESS_SECRET"]
+
 HF_TOKEN        = os.environ["HF_TOKEN"]
 
+
 print("Checking secrets...", flush=True)
+
 print("FOOTBALL_KEY present:", "FOOTBALL_API_KEY" in os.environ)
+
 print("TWITTER_API_KEY present:", "TWITTER_API_KEY" in os.environ)
+
 print("TWITTER_API_SECRET present:", "TWITTER_API_SECRET" in os.environ)
+
 print("TWITTER_ACCESS_TOKEN present:", "TWITTER_ACCESS_TOKEN" in os.environ)
+
 print("TWITTER_ACCESS_SECRET present:", "TWITTER_ACCESS_SECRET" in os.environ)
+
 print("HF_TOKEN present:", "HF_TOKEN" in os.environ)
+
 
 # ── Twitter client ─────────────────────────────────────────
 
