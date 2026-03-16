@@ -72,21 +72,26 @@ LEAGUES = {
 }
 
 # ── Fetch today's finished matches ──────────────────────────────
+from datetime import date, timedelta
+
 def get_finished_matches():
     headers = {"X-Auth-Token": FOOTBALL_KEY}
-    today   = str(date.today())
-    results = []
+    today    = str(date.today())               # e.g. 2026-03-16
+    tomorrow = str(date.today() + timedelta(days=1))  # dateTo is exclusive so use tomorrow
+    results  = []
 
     for code, name in LEAGUES.items():
         try:
-            url = f"https://api.football-data.org/v4/competitions/{code}/matches?status=FINISHED"
-            r   = requests.get(url, headers=headers, timeout=10)
+            url = (
+                f"https://api.football-data.org/v4/competitions/{code}/matches"
+                f"?status=FINISHED&dateFrom={today}&dateTo={tomorrow}"
+            )
+            r = requests.get(url, headers=headers, timeout=10)
             r.raise_for_status()
             matches = r.json().get("matches", [])
-            todays  = [m for m in matches if m["utcDate"][:10] == today]
-            results.extend([(name, m) for m in todays])
-            print(f"{name}: {len(todays)} finished matches today", flush=True)
-            time.sleep(6)  # stay within 10 calls/min free tier limit
+            print(f"{name}: {len(matches)} finished matches today", flush=True)
+            results.extend([(name, m) for m in matches])
+            time.sleep(6)
         except Exception as e:
             print(f"Error fetching {name}: {e}", flush=True)
 
