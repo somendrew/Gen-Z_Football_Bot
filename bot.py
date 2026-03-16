@@ -76,30 +76,33 @@ from datetime import date, timedelta
 
 def get_finished_matches():
     headers = {"X-Auth-Token": FOOTBALL_KEY}
-    # today    = str(date.today())
-    # tomorrow = str(date.today() + timedelta(days=1))
     today    = "2026-03-15"
     tomorrow = "2026-03-16"
 
+    LEAGUES = {
+        "PL": "Premier League",
+        "CL": "UEFA Champions League",
+    }
+
     try:
-        # Use the top-level matches endpoint — supports date + status together
-        url = f"https://api.football-data.org/v4/matches?dateFrom={today}&dateTo={tomorrow}&status=FINISHED"
+        url = f"https://api.football-data.org/v4/matches?dateFrom={today}&dateTo={tomorrow}&status=FINISHED&competitions=PL,CL"
         r = requests.get(url, headers=headers, timeout=10)
 
-        # Print the raw response so we can see exactly what the API says
         print(f"API status code: {r.status_code}", flush=True)
         print(f"API response: {r.text[:300]}", flush=True)
 
         r.raise_for_status()
         matches = r.json().get("matches", [])
-        print(f"Total finished matches today: {len(matches)}", flush=True)
+        print(f"Total PL/CL finished matches: {len(matches)}", flush=True)
 
-        # Return as (competition_name, match) tuples to keep rest of code unchanged
         results = []
         for m in matches:
-            comp_name = m.get("competition", {}).get("name", "Unknown League")
-            results.append((comp_name, m))
+            comp_code = m.get("competition", {}).get("code", "")
+            comp_name = LEAGUES.get(comp_code, None)
+            if comp_name:
+                results.append((comp_name, m))
 
+        print(f"Filtered matches: {len(results)}", flush=True)
         return results
 
     except Exception as e:
