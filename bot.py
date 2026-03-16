@@ -7,48 +7,54 @@ import tweepy
 import schedule
 import time
 from datetime import date
+from atproto import Client as BskyClient
 
 print("All imports done", flush=True)
 
-# ── Check secrets BEFORE assigning (so we see what's missing) ──
-print("--- Checking secrets ---", flush=True)
-print("FOOTBALL_API_KEY present:",   "FOOTBALL_API_KEY"    in os.environ, flush=True)
-print("TWITTER_API_KEY present:",    "TWITTER_API_KEY"     in os.environ, flush=True)
-print("TWITTER_API_SECRET present:", "TWITTER_API_SECRET"  in os.environ, flush=True)
-print("TWITTER_ACCESS_TOKEN present:", "TWITTER_ACCESS_TOKEN" in os.environ, flush=True)
-print("TWITTER_ACCESS_SECRET present:", "TWITTER_ACCESS_SECRET" in os.environ, flush=True)
-print("HF_TOKEN present:",           "HF_TOKEN"            in os.environ, flush=True)
+# # ── Check secrets BEFORE assigning (so we see what's missing) ──
+# print("--- Checking secrets ---", flush=True)
+# print("FOOTBALL_API_KEY present:",   "FOOTBALL_API_KEY"    in os.environ, flush=True)
+# print("TWITTER_API_KEY present:",    "TWITTER_API_KEY"     in os.environ, flush=True)
+# print("TWITTER_API_SECRET present:", "TWITTER_API_SECRET"  in os.environ, flush=True)
+# print("TWITTER_ACCESS_TOKEN present:", "TWITTER_ACCESS_TOKEN" in os.environ, flush=True)
+# print("TWITTER_ACCESS_SECRET present:", "TWITTER_ACCESS_SECRET" in os.environ, flush=True)
+# print("HF_TOKEN present:",           "HF_TOKEN"            in os.environ, flush=True)
 
-# ── Load secrets safely (won't crash if missing) ────────────────
-FOOTBALL_KEY    = os.environ.get("FOOTBALL_API_KEY",     "NOT SET")
-TW_API_KEY      = os.environ.get("TWITTER_API_KEY",      "NOT SET")
-TW_API_SECRET   = os.environ.get("TWITTER_API_SECRET",   "NOT SET")
-TW_ACCESS_TOKEN = os.environ.get("TWITTER_ACCESS_TOKEN", "NOT SET")
-TW_ACCESS_SEC   = os.environ.get("TWITTER_ACCESS_SECRET","NOT SET")
-HF_TOKEN        = os.environ.get("HF_TOKEN",             "NOT SET")
+# # ── Load secrets safely (won't crash if missing) ────────────────
+# FOOTBALL_KEY    = os.environ.get("FOOTBALL_API_KEY",     "NOT SET")
+# TW_API_KEY      = os.environ.get("TWITTER_API_KEY",      "NOT SET")
+# TW_API_SECRET   = os.environ.get("TWITTER_API_SECRET",   "NOT SET")
+# TW_ACCESS_TOKEN = os.environ.get("TWITTER_ACCESS_TOKEN", "NOT SET")
+# TW_ACCESS_SEC   = os.environ.get("TWITTER_ACCESS_SECRET","NOT SET")
+# HF_TOKEN        = os.environ.get("HF_TOKEN",             "NOT SET")
 
-# Print first 6 chars to confirm loaded without exposing full key
-print("FOOTBALL_KEY:",    FOOTBALL_KEY[:6]    if FOOTBALL_KEY    != "NOT SET" else "NOT SET", flush=True)
-print("TW_API_KEY:",      TW_API_KEY[:6]      if TW_API_KEY      != "NOT SET" else "NOT SET", flush=True)
-print("TW_API_SECRET:",   TW_API_SECRET[:6]   if TW_API_SECRET   != "NOT SET" else "NOT SET", flush=True)
-print("TW_ACCESS_TOKEN:", TW_ACCESS_TOKEN[:6] if TW_ACCESS_TOKEN != "NOT SET" else "NOT SET", flush=True)
-print("TW_ACCESS_SEC:",   TW_ACCESS_SEC[:6]   if TW_ACCESS_SEC   != "NOT SET" else "NOT SET", flush=True)
-print("HF_TOKEN:",        HF_TOKEN[:6]        if HF_TOKEN        != "NOT SET" else "NOT SET", flush=True)
+# # Print first 6 chars to confirm loaded without exposing full key
+# print("FOOTBALL_KEY:",    FOOTBALL_KEY[:6]    if FOOTBALL_KEY    != "NOT SET" else "NOT SET", flush=True)
+# print("TW_API_KEY:",      TW_API_KEY[:6]      if TW_API_KEY      != "NOT SET" else "NOT SET", flush=True)
+# print("TW_API_SECRET:",   TW_API_SECRET[:6]   if TW_API_SECRET   != "NOT SET" else "NOT SET", flush=True)
+# print("TW_ACCESS_TOKEN:", TW_ACCESS_TOKEN[:6] if TW_ACCESS_TOKEN != "NOT SET" else "NOT SET", flush=True)
+# print("TW_ACCESS_SEC:",   TW_ACCESS_SEC[:6]   if TW_ACCESS_SEC   != "NOT SET" else "NOT SET", flush=True)
+# print("HF_TOKEN:",        HF_TOKEN[:6]        if HF_TOKEN        != "NOT SET" else "NOT SET", flush=True)
 
-# ── Abort early if any secret is missing ────────────────────────
-missing = [k for k, v in {
-    "FOOTBALL_API_KEY":     FOOTBALL_KEY,
-    "TWITTER_API_KEY":      TW_API_KEY,
-    "TWITTER_API_SECRET":   TW_API_SECRET,
-    "TWITTER_ACCESS_TOKEN": TW_ACCESS_TOKEN,
-    "TWITTER_ACCESS_SECRET":TW_ACCESS_SEC,
-    "HF_TOKEN":             HF_TOKEN,
-}.items() if v == "NOT SET"]
+# # ── Abort early if any secret is missing ────────────────────────
+# missing = [k for k, v in {
+#     "FOOTBALL_API_KEY":     FOOTBALL_KEY,
+#     "TWITTER_API_KEY":      TW_API_KEY,
+#     "TWITTER_API_SECRET":   TW_API_SECRET,
+#     "TWITTER_ACCESS_TOKEN": TW_ACCESS_TOKEN,
+#     "TWITTER_ACCESS_SECRET":TW_ACCESS_SEC,
+#     "HF_TOKEN":             HF_TOKEN,
+# }.items() if v == "NOT SET"]
 
-if missing:
-    print(f"MISSING SECRETS: {missing}", flush=True)
-    print("Go to Space Settings → Secrets and add the missing keys.", flush=True)
-    sys.exit(1)
+# if missing:
+#     print(f"MISSING SECRETS: {missing}", flush=True)
+#     print("Go to Space Settings → Secrets and add the missing keys.", flush=True)
+#     sys.exit(1)
+
+BSKY_HANDLE   = os.environ.get("BSKY_HANDLE",   "NOT SET")
+BSKY_APP_PASS = os.environ.get("BSKY_APP_PASS",  "NOT SET")
+print("BSKY_HANDLE present:",   BSKY_HANDLE   != "NOT SET", flush=True)
+print("BSKY_APP_PASS present:", BSKY_APP_PASS != "NOT SET", flush=True)
 
 print("All secrets loaded", flush=True)
 
@@ -165,55 +171,62 @@ posted = set()
 MAX_POSTS_PER_RUN = 5
 
 # ── Main run loop ────────────────────────────────────────────────
-def post_scores():
-    print("\n--- Checking for finished matches ---", flush=True)
-    matches = get_finished_matches()
+# def post_scores():
+#     print("\n--- Checking for finished matches ---", flush=True)
+#     matches = get_finished_matches()
 
-    if not matches:
-        print("No matches today.", flush=True)
-        return
+#     if not matches:
+#         print("No matches today.", flush=True)
+#         return
 
-    posted_this_run = 0
+#     posted_this_run = 0
 
-    for league, match in matches:
-        if posted_this_run >= MAX_POSTS_PER_RUN:
-            print("Max posts per run reached, stopping.", flush=True)
-            break
+#     for league, match in matches:
+#         if posted_this_run >= MAX_POSTS_PER_RUN:
+#             print("Max posts per run reached, stopping.", flush=True)
+#             break
 
-        match_id = match["id"]
+#         match_id = match["id"]
 
-        if match_id in posted:
-            print(f"Already posted match {match_id}, skipping.", flush=True)
-            continue
+#         if match_id in posted:
+#             print(f"Already posted match {match_id}, skipping.", flush=True)
+#             continue
 
-        tweet, context = genzify(league, match)  # FIX: unpack tuple correctly
+#         tweet, context = genzify(league, match)  # FIX: unpack tuple correctly
 
-        if not tweet:
-            print(f"No tweet generated for: {context}", flush=True)
-            continue
+#         if not tweet:
+#             print(f"No tweet generated for: {context}", flush=True)
+#             continue
 
-        print(f"Attempting to post: {tweet}", flush=True)
+#         print(f"Attempting to post: {tweet}", flush=True)
 
-        try:
-            twitter.create_tweet(text=tweet)
-            posted.add(match_id)
-            posted_this_run += 1
-            print(f"Tweeted: {tweet}", flush=True)
-        except tweepy.errors.TooManyRequests:
-            print("Twitter rate limit hit, stopping this run.", flush=True)
-            break
-        except tweepy.errors.Forbidden as e:
-            print(f"Twitter forbidden error (check app permissions): {e}", flush=True)
-            break
-        except Exception as e:
-            print(f"Twitter error: {e}", flush=True)
+#         try:
+#             twitter.create_tweet(text=tweet)
+#             posted.add(match_id)
+#             posted_this_run += 1
+#             print(f"Tweeted: {tweet}", flush=True)
+#         except tweepy.errors.TooManyRequests:
+#             print("Twitter rate limit hit, stopping this run.", flush=True)
+#             break
+#         except tweepy.errors.Forbidden as e:
+#             print(f"Twitter forbidden error (check app permissions): {e}", flush=True)
+#             break
+#         except Exception as e:
+#             print(f"Twitter error: {e}", flush=True)
 
-        time.sleep(30)  # gap between posts
+#         time.sleep(30)  # gap between posts
 
-# ── Schedule every 30 minutes ────────────────────────────────────
-schedule.every(30).minutes.do(post_scores)
+def post_tweet(text):
+    client = BskyClient()
+    client.login(BSKY_HANDLE, BSKY_APP_PASS)
+    response = client.send_post(text=text)
+    print(f"Posted to Bluesky! URI: {response.uri}", flush=True)
+    return response.uri
 
-print("Bot is running. Running now and then every 30 minutes.", flush=True)
+# ── Schedule every 9 minutes ────────────────────────────────────
+schedule.every(9).minutes.do(post_tweet)
+
+print("Bot is running. Running now and then every 9 minutes.", flush=True)
 post_scores()  # run once immediately on startup
 
 while True:
