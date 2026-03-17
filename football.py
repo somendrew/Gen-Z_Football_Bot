@@ -1,6 +1,10 @@
+from dotenv import load_dotenv
 import requests
 from datetime import date, timedelta
-from config import FOOTBALL_KEY
+import os
+
+load_dotenv()
+FOOTBALL_KEY  = os.environ.get("FOOTBALL_API_KEY", "NOT SET")
 
 LEAGUES = {
     "PL": "Premier League",

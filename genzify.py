@@ -1,6 +1,11 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from config import HF_TOKEN
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+HF_TOKEN      = os.environ.get("HF_TOKEN",         "NOT SET")
 
 MODEL_ID = "somendrew/genz-qwen-2.5-1.5B"
 

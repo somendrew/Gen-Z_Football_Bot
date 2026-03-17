@@ -1,5 +1,11 @@
 from atproto import Client as BskyClient
-from config import BSKY_HANDLE, BSKY_APP_PASS
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+BSKY_HANDLE   = os.environ.get("BSKY_HANDLE",      "NOT SET")
+BSKY_APP_PASS = os.environ.get("BSKY_APP_PASS",    "NOT SET")
 
 def post_to_bluesky(text):
     try:

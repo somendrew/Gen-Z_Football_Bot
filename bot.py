@@ -1,10 +1,8 @@
-import sys
 import time
 import schedule
 
 print("Python starting...", flush=True)
 
-from config import *
 from football import get_finished_matches
 from genzify import genzify
 from bluesky import post_to_bluesky
