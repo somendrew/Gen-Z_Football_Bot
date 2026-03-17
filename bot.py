@@ -10,7 +10,7 @@ from bluesky import post_to_bluesky
 print("All imports done", flush=True)
 
 posted = set()
-MAX_POSTS_PER_RUN = 3
+MAX_POSTS_PER_RUN = 10
 
 def run_bot():
     print("\n--- Checking for finished matches ---", flush=True)
@@ -46,9 +46,9 @@ def run_bot():
 
         time.sleep(5)
 
-schedule.every(30).minutes.do(run_bot)
+schedule.every(15).minutes.do(run_bot)
 
-print("Bot is running. Checking every 30 minutes.", flush=True)
+print("Bot is running. Checking every 15 minutes.", flush=True)
 run_bot()
 
 while True:
