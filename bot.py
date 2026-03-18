@@ -9,6 +9,23 @@ from bluesky import post_to_bluesky
 
 print("All imports done", flush=True)
 
+#tracking server health
+#########################################################################
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+class Health(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+    def log_message(self, *args): pass
+
+threading.Thread(
+    target=lambda: HTTPServer(("0.0.0.0", 7860), Health).serve_forever(),
+    daemon=True
+).start()
+#########################################################################
 posted = set()
 MAX_POSTS_PER_RUN = 10
 
