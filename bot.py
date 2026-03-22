@@ -1,5 +1,6 @@
 import time
 import schedule
+import json
 
 print("Python starting...", flush=True)
 
@@ -26,7 +27,22 @@ threading.Thread(
     daemon=True
 ).start()
 #########################################################################
-posted = set()
+# We want to avoid reposting the same match multiple times, so we keep track of posted match IDs in a JSON file.
+POSTED_FILE = "/data/posted.json"
+def load_posted():
+    try:
+        with open(POSTED_FILE) as f:
+            return set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return set()
+    
+def save_posted(posted):
+    with open(POSTED_FILE, "w") as f:
+        json.dump(list(posted), f)
+
+posted = load_posted()
+
+##########################################################################
 MAX_POSTS_PER_RUN = 10
 
 def run_bot():
@@ -59,6 +75,7 @@ def run_bot():
 
         if uri:
             posted.add(match_id)
+            save_posted()
             posted_this_run += 1
 
         time.sleep(5)

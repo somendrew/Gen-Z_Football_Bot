@@ -9,4 +9,6 @@ COPY . .
 
 EXPOSE 7860
 
+RUN mkdir -p /data
+
 CMD ["python", "bot.py"]

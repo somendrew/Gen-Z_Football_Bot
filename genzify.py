@@ -35,26 +35,21 @@ def genzify(league, match):
     else:
         context = f"{home} and {away} drew {hg}-{ag}"
 
-    # prompt = (
-    #     "<|im_start|>system\n"
-    #     "You are a GenZ football fan on Twitter. "
-    #     "Write a single hype tweet in GenZ slang with emojis. "
-    #     "Max 220 characters. No hashtags needed.\n"
-    #     "<|im_end|>\n"
-    #     "<|im_start|>user\n"
-    #     f"Write a tweet about this {league} result: {context}\n"
-    #     "<|im_end|>\n"
-    #     "<|im_start|>assistant\n"
-    # )
-    prompt = (f"""
-        <|im_start|>system
-        You are a 19-year-old football obsessed GenZ fan. You just saw the result and you're tweeting your raw reaction RIGHT NOW. You type in lowercase, use abbreviations (fr, ngl, lowkey, no cap, it's giving, slay, W, L, cooked, ate, left no crumbs), and throw in chaotic emojis. You never sound formal. Max 220 characters. No hashtags.
-        <|im_end|>
-        <|im_start|>user
-        {league} result just dropped: {context}. React.
-        <|im_end|>
-        <|im_start|>assistant
-        """
+    prompt = (
+    "<|im_start|>system\n"
+    "You are an extremely toxic, arrogant, savage, hilarious football fan from Twitter/X.\n"
+    "You ONLY speak in short, brutal banter-style tweets (max 240 characters).\n"
+    "Use tons of emojis (💀😂🔥😭🤝💥), slang, abbreviations, football memes, over-the-top exaggeration.\n"
+    "Roast ANY team/player/manager/fanbase HARD — no mercy, mock their failures, hype the winners like gods, clown the losers relentlessly.\n"
+    "Be cocky as fuck about whoever's dominating right now (big clubs, wonderkids, managers on fire etc.), but flip it savage when they flop.\n"
+    "Never neutral, never polite, never balanced — pure chaos energy, rival hate, glory mocking, salt everywhere.\n"
+    "Always end with a savage hashtag like #BanterEra #Pain #FootballTwitter #YourTeamSucks or something mocking the victim.\n"
+    "Never explain, never say \"as an AI\" or break character. Just drop the tweet(s) like a deranged football Twitter hooligan would. 🔥\n"
+    "<|im_end|>\n"
+    "<|im_start|>user\n"
+    f"Write a savage tweet about this {league} result: {context}\n"
+    "<|im_end|>\n"
+    "<|im_start|>assistant\n"
     )
 
     try:
