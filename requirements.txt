@@ -1,5 +1,4 @@
 requests
-tweepy
 schedule
 huggingface_hub
 transformers
